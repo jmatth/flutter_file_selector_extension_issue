@@ -33,6 +33,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   String? _path;
   final _extensionController = TextEditingController();
+  final List<String> _extensions = [];
 
   @override
   dispose() {
@@ -41,17 +42,38 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _pickFile() async {
-    final extensions =
-        _extensionController.text.split(',').map((s) => s.trim()).toList();
-    debugPrint('Extensions: $extensions');
     final file = await openFile(
       acceptedTypeGroups: [
-        XTypeGroup(extensions: extensions),
+        XTypeGroup(
+          extensions: _extensions,
+          // uniformTypeIdentifiers: extensions,
+        ),
       ],
     );
     if (file == null) return;
     setState(() {
       _path = file.path;
+    });
+  }
+
+  final _splitPattern = RegExp(r'(\s|,)');
+  void _addExtensions(String extensionsStr) {
+    _extensionController.value = TextEditingValue.empty;
+    final extensions = extensionsStr
+        .split(_splitPattern)
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .where((s) => !_extensions.contains(s))
+        .toList();
+    if (extensions.isEmpty) return;
+    setState(() {
+      _extensions.addAll(extensions);
+    });
+  }
+
+  void _removeExtension(String extension) {
+    setState(() {
+      _extensions.remove(extension);
     });
   }
 
@@ -66,12 +88,20 @@ class _MyHomePageState extends State<MyHomePage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Wrap(
+            direction: Axis.horizontal,
+            runSpacing: 10,
+            spacing: 5,
+            children: _extensionChips(context),
+          ),
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
               child: TextField(
                 controller: _extensionController,
                 maxLines: 1,
+                onSubmitted: _addExtensions,
+                textInputAction: TextInputAction.none,
               ),
             ),
           ),
@@ -86,4 +116,12 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
+  List<Widget> _extensionChips(BuildContext context) => _extensions
+      .map((e) => InputChip(
+            key: ValueKey(e),
+            label: Text(e),
+            onDeleted: () => _removeExtension(e),
+          ))
+      .toList();
 }
